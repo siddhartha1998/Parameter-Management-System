@@ -1,0 +1,18 @@
+<div class="app-container">
+  
+  <!-- STAGE 1: RESOURCE SELECTOR (Entry) -->
+  @if (!state.selectedTemplateId() && !state.isDashboardOpen()) {
+    <app-resource-selector />
+  }
+
+  <!-- STAGE 2: MODERN DASHBOARD (Selection Modal) -->
+  @if (!state.selectedTemplateId() && state.isDashboardOpen()) {
+    <app-template-dashboard />
+  }
+
+  <!-- STAGE 3: MAIN DESIGNER WORKSPACE -->
+  @if (state.selectedTemplateId()) {
+    <app-designer-workspace />
+  }
+
+</div>

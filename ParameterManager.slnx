@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ParameterManager.Api/ParameterManager.Api.csproj" />
+    <Project Path="src/ParameterManager.Core/ParameterManager.Core.csproj" />
+    <Project Path="src/ParameterManager.Infrastructure/ParameterManager.Infrastructure.csproj" />
+  </Folder>
+</Solution>

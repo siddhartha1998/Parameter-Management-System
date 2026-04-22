@@ -1,0 +1,23 @@
+:root {
+  --primary: #1a2a5a;
+  --bg-app: #f4f7f9;
+  --bg-sidebar: #ffffff;
+  --border-color: #d1d5db;
+  --text-main: #333333;
+  --text-muted: #666666;
+  --accent: #f59e0b;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-app);
+  color: var(--text-main);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}

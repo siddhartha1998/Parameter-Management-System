@@ -65,7 +65,8 @@ export class DesignerService {
 
   canAddRemoveParameters = computed(() => {
     const status = this.currentTemplate()?.status;
-    return this.activeTab() !== 'edit' && status === 0;
+    const isNew = !!this.selectedTemplateId()?.startsWith('NEW_');
+    return this.activeTab() !== 'edit' && (status === 0 || isNew);
   });
 
   visibleDefinitions = computed(() => {
@@ -204,11 +205,14 @@ export class DesignerService {
   }
 
   startBlankTemplate() {
-    const name = `New_Template_${Date.now()}`;
+    const name = prompt('Enter a name for the new template:', `New_Template_${Date.now()}`);
+    if (!name) return;
+
     this.selectedTemplateId.set('NEW_BLANK');
     this.definitions.set([]);
     this.tempTemplateName.set(name);
     this.isDashboardOpen.set(false);
+    this.activeTab.set('design');
     this.markDirty();
   }
 

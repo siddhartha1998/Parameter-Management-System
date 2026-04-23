@@ -24,6 +24,22 @@ The application follows a structured "Design-to-Deployment" lifecycle:
 
 ---
 
+## 🖼️ System Walkthrough
+
+### 1. Template Designer
+The Template Designer features a folder-based tree navigation and a workspace grid for managing parameters.
+![Template Designer](screenshots/designer.png)
+
+### 2. Parameter Metadata & Validation
+Each parameter can be configured with specific data types, validation rules, and scope levels via the Properties sidebar.
+![Edit Mode](screenshots/edit_mode.png)
+
+### 3. Real-Time JSON Preview
+The system reconstructs the final JSON payload in real-time as changes are made in the designer.
+![JSON Preview](screenshots/json_preview.png)
+
+---
+
 ## 🎨 Design Rules & UI/UX Standards
 
 The dashboard adheres to a **Premium, Dark-Cored aesthetic** optimized for efficiency:

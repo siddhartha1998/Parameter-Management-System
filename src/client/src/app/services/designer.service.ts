@@ -28,10 +28,9 @@ export class DesignerService {
   previewNodeId = signal<string>('12345678-1234-1234-1234-1234567890ab');
   reconstructedJson = signal<any>(null);
   uiRuleType = signal<string>('None');
-
-  // --- UI State (Moved from AppComponent) ---
   isStringArrayDropdownOpen = signal<string | null>(null);
   editingTagIndex = signal<{defId: string, index: number} | null>(null);
+  dataContext = signal<'template' | 'overrides'>('template');
 
   // --- Enums for template access ---
   DataType = DataType;
@@ -138,11 +137,19 @@ export class DesignerService {
             if (+def.dataType === DataType.Object) {
                 obj[def.keyName] = build(path ? path + '.' + def.keyName : def.keyName, 0);
             } else if (+def.dataType === DataType.ObjectArray) {
-                const count = def.defaultValues ? def.defaultValues.length : 1;
-                obj[def.keyName] = Array.from({length: count}).map((_, i) => build(path ? path + '.' + def.keyName : def.keyName, i));
+                const childPath = path ? path + '.' + def.keyName : def.keyName;
+                const children = this.definitions().filter(d => d.parentPath === childPath);
+                const count = children.length > 0 ? Math.max(1, ...children.map(c => (c.defaultValues || []).length)) : 1;
+                obj[def.keyName] = Array.from({length: count}).map((_, i) => build(childPath, i));
             } else if (+def.dataType === DataType.StringArray) {
-                const raw = def.defaultValues[effectiveIdx] || '';
-                obj[def.keyName] = raw ? raw.split(',').map(s => s.trim()).filter(s => s) : [];
+                const parent = this.definitions().find(d => (d.parentPath ? d.parentPath + '.' + d.keyName : d.keyName) === def.parentPath);
+                const isChildOfObjectArray = parent && +parent.dataType === DataType.ObjectArray;
+                if (isChildOfObjectArray) {
+                  const raw = def.defaultValues[effectiveIdx] || '';
+                  obj[def.keyName] = raw ? raw.split(',').map(s => s.trim()).filter(s => s) : [];
+                } else {
+                  obj[def.keyName] = (def.defaultValues || []).filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+                }
             } else if (+def.dataType === DataType.Boolean) {
                 obj[def.keyName] = def.defaultValues[effectiveIdx] === 'true';
             } else if (+def.dataType === DataType.Integer) {
@@ -177,25 +184,21 @@ export class DesignerService {
     const oldTab = this.activeTab();
     if (newTab === oldTab) return;
 
-    // Real-time Sync logic:
-    // 1. If switching to/from 'preview', we do NOT reload because we want to see/preserve unsaved edits.
-    // 2. We only reload when switching between Design Mode and Edit (Override) Mode.
-    
-    const isOldModeDesign = oldTab === 'design' || (oldTab === 'preview' && this.definitions().some(d => !d.parameterValueIds)); 
-    const isNewModeDesign = newTab === 'design';
-    const isNewModeEdit = newTab === 'edit';
+    // Determine intended data context
+    const targetContext = newTab === 'edit' ? 'overrides' : (newTab === 'design' ? 'template' : this.dataContext());
+    const needsReload = targetContext !== this.dataContext();
 
-    // If switching between the two "source" modes, reload are required
-    if ((oldTab === 'design' && newTab === 'edit') || (oldTab === 'edit' && newTab === 'design')) {
+    if (needsReload) {
       if (this.hasUnsavedChanges()) {
-        if (!confirm('You have unsaved changes. Switching modes will reload data and discard them. Proceed?')) {
+        if (!confirm('Switching modes will reload data and discard your unsaved edits. Proceed?')) {
           return;
         }
       }
       this.activeTab.set(newTab);
+      this.dataContext.set(targetContext);
       this.reloadAll();
     } else {
-      // Just switching to/from preview, keep the current definitions signal as is
+      // Toggling preview or staying in same context - PRESERVE UNSAVED DATA
       this.activeTab.set(newTab);
     }
   }
@@ -310,7 +313,8 @@ export class DesignerService {
       this.definitions.set([]);
       return;
     }
-    if (this.activeTab() === 'design' || this.activeTab() === 'preview') {
+    
+    if (this.dataContext() === 'template') {
       this.paramService.getDefinitions(this.selectedTemplateId()!).subscribe(defs => {
         this.definitions.set(defs);
         this.originalStateSnapshot.set(JSON.stringify(defs));
@@ -318,7 +322,7 @@ export class DesignerService {
         this.deletedIds.clear();
         this.refreshJson();
       });
-    } else if (this.activeTab() === 'edit') {
+    } else if (this.dataContext() === 'overrides') {
       this.paramService.getOverrideDefinitions(this.previewNodeId(), this.previewScope(), this.selectedTemplateId()!).subscribe(defs => {
         this.definitions.set(defs);
         this.originalStateSnapshot.set(JSON.stringify(defs));
@@ -647,6 +651,12 @@ export class DesignerService {
   }
 
   addArrayInstance() {
+    const parent = this.parentDefinition();
+    if (parent && +parent.dataType === DataType.ObjectArray) {
+      if (!parent.defaultValues) parent.defaultValues = [];
+      parent.defaultValues.push('');
+    }
+
     const children = this.currentFolderDefinitions();
     children.forEach(child => {
         if (!child.defaultValues) child.defaultValues = [];
@@ -657,6 +667,11 @@ export class DesignerService {
   }
 
   removeArrayInstance(index: number) {
+    const parent = this.parentDefinition();
+    if (parent && +parent.dataType === DataType.ObjectArray && parent.defaultValues) {
+      parent.defaultValues.splice(index, 1);
+    }
+
     const children = this.currentFolderDefinitions();
     children.forEach(child => {
         if (child.defaultValues && child.defaultValues.length > index) {
@@ -676,12 +691,7 @@ export class DesignerService {
   }
 
   editTag(def: ParameterDefinition, tagIndex: number) {
-    const tags = this.getTags(def);
-    const oldVal = tags[tagIndex];
-    const newVal = prompt('Edit item:', oldVal);
-    if (newVal !== null && newVal.trim() !== '' && newVal !== oldVal) {
-      this.updateTag(def, tagIndex, newVal.trim());
-    }
+    this.editingTagIndex.set({ defId: def.id!, index: tagIndex });
   }
 
   resetToRoot() {

@@ -9,18 +9,24 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
+    @if (state.isStringArrayDropdownOpen()) {
+      <div (click)="state.isStringArrayDropdownOpen.set(null)" 
+           style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(248, 250, 252, 0.7); z-index: 998; cursor: default;">
+      </div>
+    }
+
     <!-- MAIN WORKSPACE HEADER -->
     <header class="glass-header">
       <div class="logo">
         <h1>💠 TMS Parameter Designer</h1>
       </div>
-      
+
       <nav class="tabs">
         <button [class.active]="state.activeTab() === 'design'" (click)="state.onTabSwitch('design')">Design</button>
         <button [class.active]="state.activeTab() === 'preview'" (click)="state.onTabSwitch('preview')">Preview JSON</button>
         <button [class.active]="state.activeTab() === 'edit'" (click)="state.onTabSwitch('edit')">Edit Parameter</button>
       </nav>
-
+      
       <div class="header-actions">
         <button style="margin-right:15px; padding:8px 15px; border:none; border-radius:5px; background:#10b981; color:white; cursor:pointer; font-weight:500;" 
                 (click)="state.downloadParameterJson()">
@@ -96,6 +102,7 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
           <div class="card-grid">
             @for (node of state.currentFolderDefinitions(); track node.id) {
               <div class="minimal-card" [class.selected]="state.selectedDefinition() === node" 
+                   [style.z-index]="state.isStringArrayDropdownOpen()?.includes(node.id!) ? 1001 : 'auto'"
                    (click)="state.selectDefinition(node); $event.stopPropagation()">
                 <div class="card-header-row">
                   <div>
@@ -127,7 +134,9 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
                           }
                       </div>
                       @if (state.isStringArrayDropdownOpen() === node.id + '_card') {
+                        <div style="position: relative; z-index: 1000;">
                           <ng-container *ngTemplateOutlet="stringArrayModalTemplate; context: { def: node }"></ng-container>
+                        </div>
                       }
                     </div>
                   } @else {
@@ -206,7 +215,7 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
 
               <!-- DYNAMIC DEFAULT VALUE SECTION -->
               @if (+def.dataType !== DataType.Object && +def.dataType !== DataType.ObjectArray) {
-                <div class="form-group" style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; position: relative;">
+                <div class="form-group" [style.z-index]="state.isStringArrayDropdownOpen()?.includes(def.id!) ? 1001 : 'auto'" style="padding: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; position: relative;">
                   <label>Default Value <span class="required-star" *ngIf="def.isMandatory">*</span></label>
                   
                   @if (+def.dataType === DataType.Boolean) {
@@ -228,7 +237,9 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
                           }
                       </div>
                       @if (state.isStringArrayDropdownOpen() === (def.id! + '_prop')) {
-                          <ng-container *ngTemplateOutlet="stringArrayModalTemplate; context: { def: def }"></ng-container>
+                          <div style="position: relative; z-index: 1000;">
+                            <ng-container *ngTemplateOutlet="stringArrayModalTemplate; context: { def: def }"></ng-container>
+                          </div>
                       }
                     </div>
                   } @else {
@@ -321,9 +332,29 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
 
     <!-- PREVIEW TAB CONTENT -->
     @if (state.activeTab() === 'preview') {
-      <main class="center-workspace" style="padding: 20px;">
-          <div class="json-live-preview" style="background:#0f172a; color:#a5b4fc; padding:20px; border-radius:8px;">
-             <pre style="margin:0; font-family:'Fira Code', monospace; font-size:0.85rem; overflow-x:auto; white-space:pre-wrap;">{{state.localJson() | json}}</pre>
+      <main class="center-workspace" style="padding: 20px; display: flex; flex-direction: column;">
+          <div class="preview-mode-header" style="display: flex; gap: 10px; margin-bottom: 20px; background: #f1f5f9; padding: 6px; border-radius: 8px; width: fit-content;">
+             <button [style.background]="state.dataContext() === 'template' ? 'white' : 'transparent'" 
+                     [style.box-shadow]="state.dataContext() === 'template' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'"
+                     [style.color]="state.dataContext() === 'template' ? '#1e293b' : '#64748b'"
+                     style="padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s;"
+                     (click)="state.onTabSwitch('design'); state.activeTab.set('preview')">
+                Template Preview
+             </button>
+             <button [style.background]="state.dataContext() === 'overrides' ? 'white' : 'transparent'" 
+                     [style.box-shadow]="state.dataContext() === 'overrides' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'"
+                     [style.color]="state.dataContext() === 'overrides' ? '#1e293b' : '#64748b'"
+                     style="padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s;"
+                     (click)="state.onTabSwitch('edit'); state.activeTab.set('preview')">
+                Terminal Overrides
+             </button>
+          </div>
+
+          <div class="json-live-preview" style="background:#0f172a; color:#a5b4fc; padding:20px; border-radius:12px; flex: 1; border: 1px solid #334155; position: relative;">
+             <div style="position: absolute; top: 10px; right: 20px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 700;">
+                {{state.dataContext() === 'template' ? 'Mode: Design / Template' : 'Mode: Edit / Overrides'}}
+             </div>
+             <pre style="margin:0; font-family:'JetBrains Mono', monospace; font-size:0.9rem; line-height: 1.5; overflow-x:auto; white-space:pre-wrap;">{{state.localJson() | json}}</pre>
           </div>
       </main>
     }
@@ -363,7 +394,16 @@ import { ParameterDefinition, DataType, ScopeLevel, ParamCategory } from '../mod
           <div style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
              @for (tag of state.getTags(def); track $index) {
                 <div style="display:flex; align-items:center; justify-content:space-between; padding: 6px 4px; transition: background 0.2s; border-radius: 6px;">
-                   <span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; color: #475569; font-weight: 500;">{{tag}}</span>
+                   @if (state.editingTagIndex()?.defId === def.id && state.editingTagIndex()?.index === $index) {
+                      <input #editInp type="text" 
+                             [value]="tag" 
+                             style="flex: 1; padding: 4px 8px; border: 1.5px solid #2563eb; border-radius: 4px; font-size: 0.85rem; outline: none;"
+                             (keydown.enter)="state.updateTag(def, $index, editInp.value); state.editingTagIndex.set(null)"
+                             (blur)="state.updateTag(def, $index, editInp.value); state.editingTagIndex.set(null)"
+                             [autofocus]="true">
+                   } @else {
+                      <span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem; color: #475569; font-weight: 500;">{{tag}}</span>
+                   }
                    <div style="display:flex; gap: 8px; align-items: center;">
                       <!-- EDIT ICON (Premium Styled) -->
                       <div (click)="state.editTag(def, $index)" style="cursor:pointer; padding: 4px; border-radius: 4px; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
@@ -451,5 +491,9 @@ export class DesignerWorkspaceComponent {
     if (confirm(`Remove instance ${index + 1}?`)) {
       this.state.removeArrayInstance(index);
     }
+  }
+
+  editTag(def: ParameterDefinition, tagIndex: number) {
+    this.state.editingTagIndex.set({ defId: def.id!, index: tagIndex });
   }
 }
